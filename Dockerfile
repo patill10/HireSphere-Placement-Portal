@@ -2,6 +2,11 @@
 FROM eclipse-temurin:21-jdk-alpine AS build
 WORKDIR /app
 COPY . .
+
+# Grant execute permissions to Maven Wrapper
+RUN chmod +x ./mvnw
+
+# Build project skipping tests
 RUN ./mvnw clean package -DskipTests
 
 # Step 2: Create lightweight runtime image
