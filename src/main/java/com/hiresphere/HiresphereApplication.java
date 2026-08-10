@@ -1,4 +1,4 @@
-package com.hiresphere.hiresphere;
+package com.hiresphere;
 
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
