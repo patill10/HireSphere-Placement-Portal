@@ -6,6 +6,8 @@ import com.hiresphere.service.JobService;
 import jakarta.validation.Valid;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.List;
+
 @RestController
 @RequestMapping("/api")
 public class JobController {
@@ -19,6 +21,11 @@ public class JobController {
     @PostMapping("/jobs")
     public String createJob(@Valid @RequestBody JobPosting job) throws Exception {
         return jobService.createJob(job);
+    }
+
+    @GetMapping("/jobs")
+    public List getAllJobs() throws Exception {
+        return jobService.getAllJobs();
     }
 
     @PostMapping("/applications")

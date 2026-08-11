@@ -2,10 +2,8 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <!-- Essential viewport tag for multi-device responsiveness -->
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>HireSphere - Campus Placement Portal</title>
-    <!-- Bootstrap 5 CSS CDN -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <style>
         body { 
@@ -20,13 +18,12 @@
         .navbar { 
             background: linear-gradient(135deg, #0d6efd, #0a58ca); 
         }
-        .btn-custom-blue {
-            background-color: #0d6efd;
-            color: #fff;
+        .job-card { 
+            border-left: 4px solid #0d6efd; 
+            transition: transform 0.2s ease-in-out;
         }
-        .btn-custom-blue:hover {
-            background-color: #0b5ed7;
-            color: #fff;
+        .job-card:hover {
+            transform: translateY(-2px);
         }
     </style>
 </head>
@@ -39,13 +36,15 @@
         </div>
     </nav>
 
-    <!-- Main Container -->
+    <!-- Main Content Container -->
     <div class="container pb-5">
         <div class="row g-4">
             
-            <!-- Recruiter Section (Post Job) -->
-            <div class="col-12 col-lg-6">
-                <div class="card p-3 p-md-4 h-100">
+            <!-- Forms Column (Recruiter + Student) -->
+            <div class="col-12 col-lg-5">
+                
+                <!-- Recruiter Section -->
+                <div class="card p-3 p-md-4 mb-4">
                     <h4 class="mb-3 text-primary fw-bold">💼 Post a Job (Recruiter)</h4>
                     <form id="jobForm">
                         <div class="mb-3">
@@ -68,11 +67,9 @@
                     </form>
                     <div id="jobResult" class="mt-3"></div>
                 </div>
-            </div>
 
-            <!-- Student Section (Apply for Job) -->
-            <div class="col-12 col-lg-6">
-                <div class="card p-3 p-md-4 h-100">
+                <!-- Student Apply Form -->
+                <div class="card p-3 p-md-4">
                     <h4 class="mb-3 text-success fw-bold">👨‍🎓 Apply for Job (Student)</h4>
                     <form id="appForm">
                         <div class="mb-3">
@@ -88,12 +85,26 @@
                             <input type="number" step="0.1" id="studentCgpa" class="form-control" placeholder="e.g. 8.2" required>
                         </div>
                         <div class="mb-3">
-                            <label class="form-label fw-semibold">Job ID</label>
-                            <input type="text" id="jobId" class="form-control" placeholder="Paste Job ID here" required>
+                            <label class="form-label fw-semibold">Select Available Job</label>
+                            <!-- Dynamic Dropdown populated by REST API -->
+                            <select id="jobSelect" class="form-select" required>
+                                <option value="" disabled selected>Loading available jobs...</option>
+                            </select>
                         </div>
                         <button type="submit" id="appSubmitBtn" class="btn btn-success w-100 py-2 fw-semibold">Submit Application</button>
                     </form>
                     <div id="appResult" class="mt-3"></div>
+                </div>
+            </div>
+
+            <!-- Live Job Openings Display Column -->
+            <div class="col-12 col-lg-7">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <h4 class="fw-bold text-dark mb-0">📋 Live Job Openings</h4>
+                    <button class="btn btn-outline-secondary btn-sm" onclick="loadJobs()">🔄 Refresh Jobs</button>
+                </div>
+                <div id="jobsList" class="row g-3">
+                    <div class="text-secondary">Loading available positions from database...</div>
                 </div>
             </div>
 
@@ -102,20 +113,72 @@
 
     <!-- JavaScript REST Logic -->
     <script>
-        // =========================================================================
-        // IMPORTANT: Replace this URL with your exact Render backend service URL.
-        // DO NOT add a trailing slash / at the end.
-        // Example: "https://hiresphere-api.onrender.com"
-        // =========================================================================
-        const BACKEND_URL = "https://hiresphere-api-evht.onrender.com"; 
+        const BACKEND_URL = "https://hiresphere-api-evht.onrender.com";
 
-        // Handle Job Posting Form Submission
+        // Fetch and render all live jobs from Spring Boot API
+        async function loadJobs() {
+            const jobsContainer = document.getElementById('jobsList');
+            const jobSelect = document.getElementById('jobSelect');
+
+            try {
+                const response = await fetch(`${BACKEND_URL}/api/jobs`);
+                const jobs = await response.json();
+
+                if (!jobs || jobs.length === 0) {
+                    jobsContainer.innerHTML = `<div class="alert alert-warning">No job postings found. Create one on the left!</div>`;
+                    jobSelect.innerHTML = `<option value="" disabled selected>No active jobs available</option>`;
+                    return;
+                }
+
+                // Reset and populate options/cards
+                jobSelect.innerHTML = `<option value="" disabled selected>-- Choose a Job --</option>`;
+                jobsContainer.innerHTML = "";
+
+                jobs.forEach(job => {
+                    // Add option to select element
+                    const option = document.createElement('option');
+                    option.value = job.id;
+                    option.textContent = `${job.title} at ${job.companyName} (Min CGPA: ${job.minCgpa})`;
+                    jobSelect.appendChild(option);
+
+                    // Render job card
+                    const cardHtml = `
+                        <div class="col-12">
+                            <div class="card job-card p-3">
+                                <div class="d-flex justify-content-between align-items-start">
+                                    <div>
+                                        <h5 class="fw-bold text-primary mb-1">${job.title}</h5>
+                                        <h6 class="text-muted mb-2">🏢 ${job.companyName}</h6>
+                                    </div>
+                                    <span class="badge bg-primary fs-6">Min CGPA: ${job.minCgpa}</span>
+                                </div>
+                                <div class="text-secondary small mt-1">Target Branch: <strong>${job.targetBranch}</strong></div>
+                                <div class="mt-2 text-end">
+                                    <button class="btn btn-sm btn-outline-primary" onclick="selectJobForApplication('${job.id}')">Select to Apply</button>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                    jobsContainer.innerHTML += cardHtml;
+                });
+
+            } catch (err) {
+                jobsContainer.innerHTML = `<div class="alert alert-danger">Failed to fetch jobs from backend server.</div>`;
+            }
+        }
+
+        // Helper to select a job from card directly
+        function selectJobForApplication(jobId) {
+            document.getElementById('jobSelect').value = jobId;
+            document.getElementById('appForm').scrollIntoView({ behavior: 'smooth' });
+        }
+
+        // Post Job Form Handler
         document.getElementById('jobForm').addEventListener('submit', async (e) => {
             e.preventDefault();
-            
             const submitBtn = document.getElementById('jobSubmitBtn');
             const resultDiv = document.getElementById('jobResult');
-            
+
             submitBtn.disabled = true;
             submitBtn.innerText = "Posting Job...";
             resultDiv.innerHTML = "";
@@ -133,27 +196,26 @@
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(jobData)
                 });
-
                 const result = await response.text();
-
+                
                 if (response.ok) {
                     resultDiv.innerHTML = `<div class="alert alert-success">${result}</div>`;
                     document.getElementById('jobForm').reset();
+                    loadJobs();
                 } else {
-                    resultDiv.innerHTML = `<div class="alert alert-danger">Error: ${result}</div>`;
+                    resultDiv.innerHTML = `<div class="alert alert-danger">${result}</div>`;
                 }
             } catch (err) {
-                resultDiv.innerHTML = `<div class="alert alert-danger">Failed to connect to backend server. Make sure Render service is live.</div>`;
+                resultDiv.innerHTML = `<div class="alert alert-danger">Error submitting job posting.</div>`;
             } finally {
                 submitBtn.disabled = false;
                 submitBtn.innerText = "Create Job Posting";
             }
         });
 
-        // Handle Student Application Submission
+        // Application Submission Handler
         document.getElementById('appForm').addEventListener('submit', async (e) => {
             e.preventDefault();
-
             const submitBtn = document.getElementById('appSubmitBtn');
             const resultDiv = document.getElementById('appResult');
 
@@ -165,7 +227,7 @@
                 studentName: document.getElementById('studentName').value,
                 studentBranch: document.getElementById('studentBranch').value,
                 studentCgpa: parseFloat(document.getElementById('studentCgpa').value),
-                jobId: document.getElementById('jobId').value
+                jobId: document.getElementById('jobSelect').value
             };
 
             try {
@@ -174,25 +236,25 @@
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(appData)
                 });
-
-                const result = await response.text();
                 
-                // Eligibility Logic check handling based on response text
-                const isEligible = response.ok && !result.toLowerCase().includes("ineligible");
-                const alertClass = isEligible ? "alert-success" : "alert-danger";
+                const result = await response.text();
+                const isSuccessful = response.ok && !result.toLowerCase().includes("ineligible") && !result.toLowerCase().includes("failed");
+                const alertClass = isSuccessful ? "alert-success" : "alert-danger";
 
                 resultDiv.innerHTML = `<div class="alert ${alertClass}">${result}</div>`;
-
-                if (isEligible) {
+                if (isSuccessful) {
                     document.getElementById('appForm').reset();
                 }
             } catch (err) {
-                resultDiv.innerHTML = `<div class="alert alert-danger">Failed to connect to backend server. Make sure Render service is live.</div>`;
+                resultDiv.innerHTML = `<div class="alert alert-danger">Error submitting application.</div>`;
             } finally {
                 submitBtn.disabled = false;
                 submitBtn.innerText = "Submit Application";
             }
         });
+
+        // Run on Page Initialization
+        window.onload = loadJobs;
     </script>
 </body>
 </html>
